@@ -1,8 +1,6 @@
 name: snowflake-performance-optimizer
 channels:
   - snowflake
-  - conda-forge
-  - nodefaults
 dependencies:
   - python=3.9
   - streamlit=1.35.0
