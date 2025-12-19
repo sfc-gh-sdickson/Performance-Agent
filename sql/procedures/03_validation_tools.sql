@@ -14,7 +14,7 @@ CREATE OR REPLACE PROCEDURE VALIDATE_RECOMMENDATION(
 )
 RETURNS STRING
 LANGUAGE PYTHON
-RUNTIME_VERSION = '3.8'
+RUNTIME_VERSION = '3.9'
 PACKAGES = ('snowflake-snowpark-python')
 HANDLER = 'validate_rec'
 COMMENT = 'Orchestrates the cloning, application, and testing of a recommendation'

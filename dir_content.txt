@@ -1,0 +1,1 @@
+['Snowflake_Logo.svg', 'streamlit', 'README.md', 'dir_content.txt', '.git', 'sql']
