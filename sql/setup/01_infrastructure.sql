@@ -7,7 +7,7 @@ CREATE DATABASE IF NOT EXISTS PERFORMANCE_OPTI_APP;
 USE DATABASE PERFORMANCE_OPTI_APP;
 CREATE SCHEMA IF NOT EXISTS CORE;
 USE SCHEMA CORE;
-USE WAREHOUSE COMPUTE_WH; -- Using default, assume user will configure
+
 
 -- ============================================================================
 -- Logging Table
@@ -51,7 +51,7 @@ CREATE OR REPLACE PROCEDURE LOG_ACTION(
 )
 RETURNS STRING
 LANGUAGE PYTHON
-RUNTIME_VERSION = '3.8'
+RUNTIME_VERSION = '3.9'
 PACKAGES = ('snowflake-snowpark-python')
 HANDLER = 'log_entry'
 AS
