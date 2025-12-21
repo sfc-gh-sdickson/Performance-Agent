@@ -4,6 +4,6 @@ channels:
 dependencies:
   - python=3.9
   - streamlit=1.35.0
-  - snowflake-snowpark-python=1.18.0
-  - pandas=2.2.2
-  - snowflake-connector-python=3.10.1
+  - snowflake-snowpark-python=1.16.0
+  - pandas=2.1.4
+  - snowflake-connector-python=3.6.0
