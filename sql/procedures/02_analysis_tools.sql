@@ -2,9 +2,7 @@ USE DATABASE PERFORMANCE_OPTI_APP;
 USE SCHEMA CORE;
 
 -- ============================================================================
--- Tool: Get Slow Queries
--- Description: Scans QUERY_HISTORY for queries exceeding the threshold.
---              Filters for DML and Selects.
+-- Analysis Tool
 -- ============================================================================
 CREATE OR REPLACE PROCEDURE GET_SLOW_QUERIES(
     MIN_EXECUTION_TIME_SECONDS FLOAT,
@@ -12,17 +10,19 @@ CREATE OR REPLACE PROCEDURE GET_SLOW_QUERIES(
 )
 RETURNS STRING
 LANGUAGE PYTHON
-RUNTIME_VERSION = '3.10'
+RUNTIME_VERSION = '3.11'
 PACKAGES = ('snowflake-snowpark-python')
 HANDLER = 'get_slow'
-COMMENT = 'Finds slow SELECT/DML queries to analyze'
 AS
 $$
 import json
+from snowflake.snowpark.functions import col, lit
 
 def get_slow(session, min_seconds, lookback_hours):
     min_ms = min_seconds * 1000
     
+    # Use Snowpark DataFrame for safer, cleaner query construction
+    # But direct SQL is often easier for system views requiring specific latency/permissions
     query = f"""
     SELECT 
         QUERY_ID, 
@@ -40,28 +40,19 @@ def get_slow(session, min_seconds, lookback_hours):
       AND START_TIME >= DATEADD('hour', -{lookback_hours}, CURRENT_TIMESTAMP())
       AND EXECUTION_STATUS = 'SUCCESS'
       AND QUERY_TYPE IN ('SELECT', 'INSERT', 'UPDATE', 'DELETE', 'MERGE')
-      AND QUERY_TEXT NOT LIKE '%QUERY_HISTORY%' -- Exclude self
+      AND QUERY_TEXT NOT LIKE '%QUERY_HISTORY%' 
+      AND DATABASE_NAME IS NOT NULL
     ORDER BY EXECUTION_TIME DESC
     LIMIT 20
     """
     
     try:
         df = session.sql(query).to_pandas()
-        
-        # Log this check
-        session.call("LOG_ACTION", "PERFORMANCE_COLLECTOR", "ANALYSIS", 
-                     f"Scanned for queries > {min_seconds}s in last {lookback_hours}h", 
-                     json.dumps({"count": len(df)}))
-                     
         return df.to_json(orient='records')
     except Exception as e:
         return json.dumps({"error": str(e)})
 $$;
 
--- ============================================================================
--- Tool: Save Recommendation
--- Description: Persists the Agent's analysis to the table.
--- ============================================================================
 CREATE OR REPLACE PROCEDURE SAVE_RECOMMENDATION(
     QUERY_ID STRING,
     QUERY_TEXT STRING,
@@ -71,7 +62,7 @@ CREATE OR REPLACE PROCEDURE SAVE_RECOMMENDATION(
 )
 RETURNS STRING
 LANGUAGE PYTHON
-RUNTIME_VERSION = '3.10'
+RUNTIME_VERSION = '3.11'
 PACKAGES = ('snowflake-snowpark-python')
 HANDLER = 'save_rec'
 AS
@@ -79,20 +70,14 @@ $$
 import json
 
 def save_rec(session, query_id, query_text, exec_time, analysis, ddl):
-    insert_sql = """
-    INSERT INTO QUERY_RECOMMENDATIONS 
-    (TARGET_QUERY_ID, QUERY_TEXT, EXECUTION_TIME_SECONDS, ANALYSIS_TEXT, PROPOSED_DDL, STATUS)
-    VALUES (?, ?, ?, ?, ?, 'PENDING')
-    """
     try:
-        session.sql(insert_sql, params=[query_id, query_text, exec_time, analysis, ddl]).collect()
-        
-        session.call("LOG_ACTION", "PERFORMANCE_COLLECTOR", "RECOMMENDATION", 
-                     f"Generated recommendation for Query {query_id}", 
-                     json.dumps({"analysis_snippet": analysis[:100]}))
-                     
-        return "Recommendation saved successfully."
+        query = """
+        INSERT INTO QUERY_RECOMMENDATIONS 
+        (TARGET_QUERY_ID, QUERY_TEXT, EXECUTION_TIME_SECONDS, ANALYSIS_TEXT, PROPOSED_DDL, STATUS)
+        VALUES (?, ?, ?, ?, ?, 'PENDING')
+        """
+        session.sql(query, params=[query_id, query_text, exec_time, analysis, ddl]).collect()
+        return "Saved"
     except Exception as e:
-        return f"Error saving recommendation: {str(e)}"
+        return f"Error: {str(e)}"
 $$;
-
