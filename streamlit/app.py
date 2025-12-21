@@ -3,6 +3,7 @@ from snowflake.snowpark.context import get_active_session
 import json
 import pandas as pd
 import time
+import re
 
 # Set page config
 st.set_page_config(page_title="Snowflake Performance Optimizer", layout="wide")
@@ -37,12 +38,10 @@ def ask_agent(agent_name, question):
     if agent_name == "PERFORMANCE_COLLECTION_AGENT":
         # The agent would decide to call GET_SLOW_QUERIES
         # We'll parse the prompt to extract params or default
+        min_exec = 2.0
+        hours = 24
+        
         try:
-             # Very simple parsing for demo purposes
-             import re
-             min_exec = 2.0
-             hours = 24
-             
              # Extract time (e.g. "2.0s")
              time_match = re.search(r'execution time > (\d+\.?\d*)', question)
              if time_match:
@@ -56,7 +55,7 @@ def ask_agent(agent_name, question):
              st.caption(f"Agent decided to call tool: `GetSlowQueries({min_exec}, {hours})`")
              res = session.call("PERFORMANCE_OPTI_APP.CORE.GET_SLOW_QUERIES", float(min_exec), int(hours))
         except Exception as e:
-             st.error(f"Error parsing agent params: {e}")
+             st.error(f"Error executing agent tool: {e}")
              res = "[]"
 
         data = json.loads(res)
