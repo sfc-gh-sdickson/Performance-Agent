@@ -36,9 +36,29 @@ def ask_agent(agent_name, question):
     # SIMULATION LOGIC
     if agent_name == "PERFORMANCE_COLLECTION_AGENT":
         # The agent would decide to call GET_SLOW_QUERIES
-        # We'll default to 2.0s and 24h as per the "prompt"
-        st.caption("Agent decided to call tool: `GetSlowQueries(2.0, 24)`")
-        res = session.call("PERFORMANCE_OPTI_APP.CORE.GET_SLOW_QUERIES", 2.0, 24)
+        # We'll parse the prompt to extract params or default
+        try:
+             # Very simple parsing for demo purposes
+             import re
+             min_exec = 2.0
+             hours = 24
+             
+             # Extract time (e.g. "2.0s")
+             time_match = re.search(r'execution time > (\d+\.?\d*)', question)
+             if time_match:
+                 min_exec = float(time_match.group(1))
+                 
+             # Extract hours (e.g. "last 24 hours")
+             hours_match = re.search(r'last (\d+) hours', question)
+             if hours_match:
+                 hours = int(hours_match.group(1))
+                 
+             st.caption(f"Agent decided to call tool: `GetSlowQueries({min_exec}, {hours})`")
+             res = session.call("PERFORMANCE_OPTI_APP.CORE.GET_SLOW_QUERIES", float(min_exec), int(hours))
+        except Exception as e:
+             st.error(f"Error parsing agent params: {e}")
+             res = "[]"
+
         data = json.loads(res)
         
         # Then the agent would analyze each and call SAVE_RECOMMENDATION
@@ -110,12 +130,18 @@ with tab1:
     st.header("Performance Collection Agent")
     st.write("Ask the agent to scan your account for slow queries.")
     
+    col_input1, col_input2 = st.columns(2)
+    with col_input1:
+        min_exec_input = st.number_input("Min Execution Time (seconds)", min_value=0.1, value=2.0, step=0.5)
+    with col_input2:
+        lookback_input = st.number_input("Lookback Period (hours)", min_value=1, value=24, step=1)
+    
     col1, col2 = st.columns([1, 3])
     with col1:
         if st.button("Run Performance Scan"):
             with st.spinner("Agent is working..."):
-                response = ask_agent("PERFORMANCE_COLLECTION_AGENT", 
-                                     "Find slow queries from the last 24 hours and analyze them.")
+                prompt = f"Find slow queries from the last {lookback_input} hours with execution time > {min_exec_input}s and analyze them."
+                response = ask_agent("PERFORMANCE_COLLECTION_AGENT", prompt)
                 st.success(response)
     
     st.subheader("Current Recommendations")
