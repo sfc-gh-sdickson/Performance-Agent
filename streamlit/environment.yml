@@ -2,7 +2,7 @@ name: snowflake-performance-optimizer
 channels:
   - snowflake
 dependencies:
-  - python=3.10
+  - python=3.11
   - streamlit
   - snowflake-snowpark-python
   - pandas
